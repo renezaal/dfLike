@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DfLike")]
+[assembly: AssemblyTitle("DfLikeBaseMod")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Epiphaners")]
-[assembly: AssemblyProduct("DfLike")]
+[assembly: AssemblyCompany("")]
+[assembly: AssemblyProduct("DfLikeBaseMod")]
 [assembly: AssemblyCopyright("Copyright ©  2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("38e74e3e-9271-4f5a-819d-bd17eb6277d7")]
+[assembly: Guid("32c73f2a-a0c6-4414-8924-5b5035ab02ed")]
 
 // Version information for an assembly consists of the following four values:
 //
