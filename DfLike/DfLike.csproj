@@ -54,7 +54,8 @@
       <DependentUpon>MainWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="DwarfishBliss.cs" />
-    <Compile Include="Map\DwarfMapDefinition.cs" />
+    <Compile Include="Map\MapDefinition.cs" />
+    <Compile Include="Map\Block.cs" />
     <Compile Include="Mods\IModBase.cs" />
     <Compile Include="Mods\ModLoader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
