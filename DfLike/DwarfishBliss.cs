@@ -1,9 +1,5 @@
-﻿using DfLike.Map;
-using DfLike.Mods;
+﻿using DfLike.Mods;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -27,7 +23,7 @@ namespace DfLike
                 MainLoop();
             }
 
-            Debug.WriteLine("Main thread ended.");
+            Console.WriteLine("Main thread ended.");
         }
 
         static Thread GUIThread;        // screen updates; ON 100% of the time
@@ -50,7 +46,7 @@ namespace DfLike
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainWindow());
-            Debug.WriteLine("GUI thread ended.");
+            Console.WriteLine("GUI thread ended.");
         }
 
         static void MainLoop()
