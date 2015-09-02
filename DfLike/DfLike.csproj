@@ -59,6 +59,8 @@
     <Compile Include="Mods\IModBase.cs" />
     <Compile Include="Mods\ModLoader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Threading\Message.cs" />
+    <Compile Include="Threading\Messages.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>

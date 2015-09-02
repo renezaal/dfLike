@@ -26,7 +26,7 @@ namespace DfLikeBaseMod
 
         public override string ModName
         {
-            get { return "Dwarf Fortress Like base mod"; }
+            get { return "Dwarf Fortress Like map definition"; }
         }
 
         public override uint VersionNumber

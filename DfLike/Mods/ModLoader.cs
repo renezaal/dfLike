@@ -12,14 +12,15 @@ namespace DfLike.Mods
     static class ModLoader
     {
         // list of all loaded mods
-        // the key in the outermost dictionary is the namespace
-        // the list under each namespace is the class name
+        // the key in the outermost dictionary is the author
+        // the list under each namespace is the mod name
         private static Dictionary<string, List<string>> _loadedMods = new Dictionary<string, List<string>>();
         // list of instances of the loaded mods
-        // the keys are <namespace>.<class name>
+        // the keys are <author>.<mod name>
         private static Dictionary<string, IModBase> _loadedModInstances = new Dictionary<string, IModBase>();
         // all map instances loaded from the mods folder
         // map instances are not actual maps but definitions of maps, each instance can contain a map
+        private static Dictionary<string, string> _loadedModFolderPaths = new Dictionary<string, string>();
         private static MapDefinition[] _mapDefinitions = new MapDefinition[0];
         internal static List<MapDefinition> GetMapDefinitions() { return new List<MapDefinition>(_mapDefinitions); }
         internal static int NumberOfLoadedMods { get; private set; }
@@ -32,24 +33,25 @@ namespace DfLike.Mods
             // get the path for the mods directory
             string modsDirectoryPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "Mods");
             // get the paths of the potential mods
-            string[] files = Directory.GetFiles(modsDirectoryPath, "*.dll");
-
+            string[] files = Directory.EnumerateFiles(modsDirectoryPath, "*.dll", SearchOption.AllDirectories).ToArray();
             // check each potential mod
             foreach (string file in files)
             {
+                Console.WriteLine("Trying to load mods from {0}", file);
+
                 // load the assembly
                 Assembly DLL = Assembly.LoadFile(file);
-
+                int containedMods=0;
                 // go through the public types in the assembly
                 foreach (Type type in DLL.GetExportedTypes())
                 {
-                    //Console.WriteLine("AssemblyQualifiedName: {0}", type.AssemblyQualifiedName);
-                    //Console.WriteLine("DeclaringMethod.Name: {0}",type.IsGenericParameter? type.DeclaringMethod.Name:"Type is not generic parameter");
-                    //Console.WriteLine("FullName: {0}", type.FullName);
-                    //Console.WriteLine("GUID: {0}", type.GUID);
-                    //Console.WriteLine("Module.FullyQualifiedName: {0}", type.Module.FullyQualifiedName);
-                    //Console.WriteLine("Name: {0}", type.Name);
-                    //Console.WriteLine("Namespace: {0}", type.Namespace);
+                    if (!typeof(IModBase).IsAssignableFrom(type))
+                    {
+                        continue;
+                    }
+
+                    containedMods++;
+
                     try
                     {
                         // if the type can be cast to a map, create a new map instance based on that type
@@ -59,7 +61,7 @@ namespace DfLike.Mods
                             if (mapDefinition != null)
                             {
                                 // each map definition counts as a mod
-                                loadMod(mapDefinition);
+                                loadMod(mapDefinition, file);
                                 // if it succeeded, add it to the list of maps
                                 mapDefinitions.Add(mapDefinition);
                             }
@@ -70,8 +72,10 @@ namespace DfLike.Mods
                     {
                         // nothing bad should happen when a type can not get instantiated or has other problems...
                     }
-
                 }
+
+                Console.WriteLine("The file {0} contained {1} mods", Path.GetFileName(file), containedMods);
+
             }
 
             // save the acquired maps in the local array
@@ -80,7 +84,7 @@ namespace DfLike.Mods
             Console.WriteLine("Total mods loaded: {0}", NumberOfLoadedMods);
         }
 
-        private static void loadMod(IModBase mod)
+        private static void loadMod(IModBase mod, string filePath)
         {
             if (mod == null) { return; }
 
@@ -88,9 +92,16 @@ namespace DfLike.Mods
 
             if (!_loadedMods.ContainsKey(mod.Author)) { _loadedMods[mod.Author] = new List<string>(); }
             _loadedMods[mod.Author].Add(mod.ModName);
-            _loadedModInstances[String.Format("{0}.{1}", mod.Author, mod.ModName)] = mod;
-            Console.WriteLine("Loaded: {0}\nAuthor: {1}\nVersion: {2}", mod.ModName, mod.Author, mod.Version);
+            _loadedModInstances[getModKey(mod)] = mod;
+            _loadedModFolderPaths[getModKey(mod)] = Path.GetDirectoryName(filePath);
+
+            Console.WriteLine("Loaded mod: {0}",mod.ModName);
+            Console.WriteLine("Author: {0}",mod.Author);
+            Console.WriteLine("Version: {0}",mod.Version);
 
         }
+
+        private static string getModKey(IModBase mod) { return mod == null ? null : String.Format("{0}.{1}", mod.Author, mod.ModName); }
+        private static string getModKey(string author, string modName) { return String.IsNullOrWhiteSpace(author) || String.IsNullOrWhiteSpace(modName) ? null : String.Format("{0}.{1}", author, modName); }
     }
 }
