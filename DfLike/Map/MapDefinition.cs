@@ -31,7 +31,7 @@ namespace DfLike.Map
             }
             return block;
         }
-        public int MapSeed { get; private set; }
+        public int MapSeed { get; protected internal set; }
         protected abstract Block GenerateBlock(int x, int y, int z);
     }
 }
