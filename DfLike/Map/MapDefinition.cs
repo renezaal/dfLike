@@ -21,7 +21,7 @@ namespace DfLike.Map
         {
             _map = new Block[x, y, z];
         }
-        public Block GetBlock(int x, int y, int z)
+        public virtual Block GetBlock(int x, int y, int z)
         {
             Block block = _map[x, y, z];
             if (block==null)

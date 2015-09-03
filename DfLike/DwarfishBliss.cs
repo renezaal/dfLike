@@ -28,7 +28,7 @@ namespace DfLike
 
         static Thread GUIThread;        // screen updates; ON 100% of the time
         static Thread WorldThread;      // world events like draught, volcanoes and tsunami's, but also civilization events like alliances, wars, assassinations and revolts; ON 5% of the time
-        static Thread MapThread;        // items ticking, fluids, map events, block updates, plant growth, seasonal changes; ON 50% of the time
+        static Thread MapThread;        // item ticking, fluids, map events, block updates, plant growth, seasonal changes; ON 50% of the time
         static Thread DwarfAIThread;    // pathfinding, decision making, hunger, pregnancy, thirst, body temperature, health, sickness, etc...; ON 100% of the time
         static Thread CreatureAIThread; // simple (short range) pathfinding, decision making, hunger, pregnancy, thirst, body temperature; ON 50% of the time
         static Thread BattleThread;     // fighting, applying wounds, removing limbs; ON 100% of the time when there is at least one fight
