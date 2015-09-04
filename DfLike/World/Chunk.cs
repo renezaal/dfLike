@@ -56,16 +56,6 @@ namespace DfLike.World
             public ulong Y;
             public ulong Z;
         }
-            private static uint GetTransparency(uint bits)
-            {
-                // first three bits are transparency
-                return (bits>>29)&7;
-            }
-            private static bool GetSuffocates(uint bits)
-            {
-                // 4th bit is suffocates
-                return ((bits >> 28) & 1 )== 1;
-            }
 
     }
 
