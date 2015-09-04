@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DfLike.Map
+namespace DfLike.Race
 {
-   public abstract class Block
+    public class IRace
     {
     }
 }

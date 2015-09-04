@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Creature\ICreature.cs" />
     <Compile Include="MainWindow.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -54,15 +55,20 @@
       <DependentUpon>MainWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="DwarfishBliss.cs" />
+    <Compile Include="Map\Map.cs" />
     <Compile Include="Map\MapDefinition.cs" />
-    <Compile Include="Map\Block.cs" />
-    <Compile Include="Mods\IModBase.cs" />
-    <Compile Include="Mods\ModLoader.cs" />
+    <Compile Include="Race\IRace.cs" />
+    <Compile Include="World\Block.cs" />
+    <Compile Include="Mod\IModBase.cs" />
+    <Compile Include="Mod\ModLoader.cs" />
+    <Compile Include="PersistantStorage\SaveLoad.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Threading\Message.cs" />
     <Compile Include="Threading\Messages.cs" />
     <Compile Include="Threading\Synchronization.cs" />
     <Compile Include="Threading\Tick.cs" />
+    <Compile Include="World\Chunk.cs" />
+    <Compile Include="World\World.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
@@ -84,10 +90,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Creatures\Intelligence\" />
-    <Folder Include="World\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>

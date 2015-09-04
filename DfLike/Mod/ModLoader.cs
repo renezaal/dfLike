@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DfLike.Mods
+namespace DfLike.Mod
 {
     static class ModLoader
     {

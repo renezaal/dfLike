@@ -1,4 +1,4 @@
-﻿using DfLike.Mods;
+﻿using DfLike.Mod;
 using System;
 using System.Threading;
 using System.Windows.Forms;
