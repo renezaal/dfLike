@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace DfLike.World
 {
-    class Item
+    class Entity
     {
+
     }
 }

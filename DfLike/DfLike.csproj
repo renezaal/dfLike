@@ -68,7 +68,7 @@
     <Compile Include="Threading\Synchronization.cs" />
     <Compile Include="Threading\Tick.cs" />
     <Compile Include="World\Chunk.cs" />
-    <Compile Include="World\Item.cs" />
+    <Compile Include="World\Entity.cs" />
     <Compile Include="World\World.cs" />
     <Compile Include="World\Zone.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
