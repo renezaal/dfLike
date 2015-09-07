@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -15,103 +16,88 @@ namespace DfLike.World
         private uint[] _customBits;
 
         // contain larger values that are set by mods
-        private Dictionary<int, float> _customFloats;
-        private Dictionary<int, string> _customStrings;
+        private ConcurrentDictionary<int, float> _customFloats;
+        private ConcurrentDictionary<int, string> _customStrings;
 
         #region custom value constructs
-        public delegate bool BoolGetterDelegate(Block block);
-        public delegate uint UIntGetterDelegate(Block block);
-        public delegate int IntGetterDelegate(Block block);
-        public delegate float FloatGetterDelegate(Block block);
-        public delegate string StringGetterDelegate(Block block);
-
-        public delegate void BoolSetterDelegate(Block block, bool value);
-        public delegate void UIntSetterDelegate(Block block, uint value);
-        public delegate void IntSetterDelegate(Block block, int value);
-        public delegate void FloatSetterDelegate(Block block, float value);
-        public delegate void StringSetterDelegate(Block block, string value);
-
-        public struct BoolFieldAccessor
+        public struct ReservedSpacePointer
         {
-            public BoolFieldAccessor(BoolGetterDelegate get, BoolSetterDelegate set) { Get = get; Set = set; }
-            public readonly BoolGetterDelegate Get;
-            public readonly BoolSetterDelegate Set;
+            internal ReservedSpacePointer(int index, int position, int bits)
+            { Index = index; Position = position; Bits = bits; Mask = CreateFullMask((uint)bits); }
+            internal readonly int Index;
+            internal readonly int Position;
+            internal readonly int Bits;
+            internal readonly uint Mask;
         }
-        public struct UIntFieldAccessor
+        public struct BoolFieldKey
         {
-            public UIntFieldAccessor(UIntGetterDelegate get, UIntSetterDelegate set) { Get = get; Set = set; }
-            public readonly UIntGetterDelegate Get;
-            public readonly UIntSetterDelegate Set;
+            public BoolFieldKey(ReservedSpacePointer space)
+            { Index = space.Index; Position = space.Position; }
+            public readonly int Index;
+            public readonly int Position;
         }
-        public struct IntFieldAccessor
+        public struct UIntFieldKey
         {
-            public IntFieldAccessor(IntGetterDelegate get, IntSetterDelegate set) { Get = get; Set = set; }
-            public readonly IntGetterDelegate Get;
-            public readonly IntSetterDelegate Set;
+            public UIntFieldKey(ReservedSpacePointer space)
+            { Index = space.Index; Position = space.Position; Bits = space.Bits; Mask = space.Mask; }
+            public readonly int Index;
+            public readonly int Position;
+            public readonly int Bits;
+            public readonly uint Mask;
         }
-        public struct FloatFieldAccessor
+        public struct UIntMinimumFieldKey
         {
-            public FloatFieldAccessor(FloatGetterDelegate get, FloatSetterDelegate set) { Get = get; Set = set; }
-            public readonly FloatGetterDelegate Get;
-            public readonly FloatSetterDelegate Set;
+            public UIntMinimumFieldKey(ReservedSpacePointer space, uint offset)
+            { Index = space.Index; Position = space.Position; Bits = space.Bits; Mask = space.Mask; Offset = offset; }
+            public readonly int Index;
+            public readonly int Position;
+            public readonly int Bits;
+            public readonly uint Mask;
+            public readonly uint Offset;
         }
-        public struct StringFieldAccessor
+        public struct IntFieldKey
         {
-            public StringFieldAccessor(StringGetterDelegate get, StringSetterDelegate set) { Get = get; Set = set; }
-            public readonly StringGetterDelegate Get;
-            public readonly StringSetterDelegate Set;
+            public IntFieldKey(ReservedSpacePointer space)
+            { Index = space.Index; Position = space.Index; Bits = space.Bits; Mask = space.Mask; }
+            public readonly int Index;
+            public readonly int Position;
+            public readonly int Bits;
+            public readonly uint Mask;
+        }
+        public struct IntMinimumFieldKey
+        {
+            public IntMinimumFieldKey(ReservedSpacePointer space, int offset)
+            { Index = space.Index; Position = space.Position; Bits = space.Bits; Mask = space.Mask; Offset = offset; }
+            public readonly int Index;
+            public readonly int Position;
+            public readonly int Bits;
+            public readonly uint Mask;
+            public readonly int Offset;
+        }
+        public struct FloatFieldKey
+        {
+            public FloatFieldKey(int index) { Index = index; }
+            public readonly int Index;
+        }
+        public struct StringFieldKey
+        {
+            public StringFieldKey(int index) { Index = index; }
+            public readonly int Index;
         }
         #endregion
+        #region field creators
+        private static volatile int _currentCustomBitsIndex = 0;
+        private static volatile int _currentCustomBitsPosition = 0;
+        private static volatile int _floatFields = 0;
+        private static volatile int _stringFields = 0;
 
-        private static int _currentCustomBitsIndex = 0;
-        private static int _currentCustomBitsPosition = 0;
-        private static int _floatFields = 0;
-        private static int _stringFields = 0;
-
-        public BoolFieldAccessor CreateCustomBoolField()
+        private static readonly object _reserveSpaceLock = new object();
+        private static ReservedSpacePointer reserveSpace(uint maxValue)
         {
-            UIntFieldAccessor uintAccessor = CreateCustomUIntFieldInternal(this, 0, 1);
-
-            UIntGetterDelegate uintGetter = uintAccessor.Get;
-            BoolGetterDelegate getter = new BoolGetterDelegate((block) => { return uintGetter(block) == 1; });
-
-            UIntSetterDelegate uintSetter = uintAccessor.Set;
-            BoolSetterDelegate setter = new BoolSetterDelegate((block, value) => { uintSetter(block, value ? 1u : 0u); });
-
-            return new BoolFieldAccessor(getter, setter);
-        }
-
-        public UIntFieldAccessor CreateCustomUIntField(uint maxValue)
-        {
-            return CreateCustomUIntField(0, maxValue);
-        }
-        public UIntFieldAccessor CreateCustomUIntField(uint minValue, uint maxValue)
-        {
-            return CreateCustomUIntFieldInternal(this, minValue, maxValue);
-        }
-        private static readonly object _createCustomUIntFieldInternalLock = new object();
-        private static UIntFieldAccessor CreateCustomUIntFieldInternal(Block instance, uint minValue, uint maxValue)
-        {
-            if (minValue > maxValue)
+            int bits = GetNumberOfBitsRequiredForIntegerValue(maxValue);
+            lock (_reserveSpaceLock)
             {
-                throw new Exception("Minimum value cannot be larger than the maximum value. ");
-            }
-            lock (_createCustomUIntFieldInternalLock)
-            {
-                UIntGetterDelegate getter;
-                UIntSetterDelegate setter;
-
-                if (maxValue == 0 || minValue == maxValue)
-                {
-                    getter = new UIntGetterDelegate((block) => { return maxValue; });
-                    setter = new UIntSetterDelegate((block, value) => { });
-                    return new UIntFieldAccessor(getter, setter);
-                }
-
-                uint range = maxValue - minValue;
-                uint bitsNeeded = GetNumberOfBitsRequiredForIntegerValue(range);
-
-                if (_currentCustomBitsPosition + bitsNeeded > 31)
+                if (_currentCustomBitsPosition + bits > 31)
                 {
                     _currentCustomBitsIndex++;
                     _currentCustomBitsPosition = 0;
@@ -119,121 +105,197 @@ namespace DfLike.World
 
                 int index = _currentCustomBitsIndex;
                 int position = _currentCustomBitsPosition;
-                uint bitmask = CreateFullMask(bitsNeeded);
-
-                if (minValue == 0)
-                {
-                    getter = new UIntGetterDelegate((block) =>
-                    {
-                        ArrayChecker(ref block._customBits, index);
-                        return GetInteger(block._customBits[index], position, bitmask);
-                    });
-                    setter = new UIntSetterDelegate((block, value) =>
-                    {
-                        ArrayChecker(ref block._customBits, index);
-                        SetInteger(ref block._customBits[index], position, bitmask, value);
-                    });
-                    return new UIntFieldAccessor(getter, setter);
-                }
-
-                uint min = minValue;
-                uint max = maxValue;
-
-                getter = new UIntGetterDelegate((block) =>
-                {
-                    ArrayChecker(ref block._customBits, index);
-                    return GetInteger(block._customBits[index], position, bitmask) + minValue;
-                });
-                setter = new UIntSetterDelegate((block, value) =>
-                {
-                    ArrayChecker(ref block._customBits, index);
-                    SetInteger(ref block._customBits[index], position, bitmask, value - minValue);
-                });
-                return new UIntFieldAccessor(getter, setter);
+                _currentCustomBitsPosition += bits;
+                return new ReservedSpacePointer(index, position, bits);
             }
         }
 
-        public IntFieldAccessor CreateCustomIntField(int minValue, int maxValue)
+        public static BoolFieldKey CreateCustomBoolField()
         {
-            return CreateCustomIntFieldInternal(this, minValue, maxValue);
+            ReservedSpacePointer space = reserveSpace(1);
+            return new BoolFieldKey(space);
         }
-        private static IntFieldAccessor CreateCustomIntFieldInternal(Block instance, int minValue, int maxValue)
+
+        public static UIntFieldKey CreateCustomUIntField(uint maxValue)
         {
-            if (minValue > maxValue)
+            if (maxValue == 0)
             {
-                throw new Exception("Minimum value cannot be larger than the maximum value. ");
+                return new UIntFieldKey(new ReservedSpacePointer(-1, 0, 0));
             }
+            ReservedSpacePointer space = reserveSpace(maxValue);
+            return new UIntFieldKey(space);
+        }
 
+        public static UIntMinimumFieldKey CreateCustomUIntField(uint minValue, uint maxValue)
+        {
+            CheckMinMax(minValue, maxValue);
+            if (minValue == maxValue)
+            {
+                return new UIntMinimumFieldKey(new ReservedSpacePointer(-1, 0, 0), minValue);
+            }
+            uint range = maxValue - minValue;
+            ReservedSpacePointer space = reserveSpace(range);
+            return new UIntMinimumFieldKey(space, minValue);
+        }
+
+        public static IntFieldKey CreateCustomIntField(int maxValue)
+        {
+            if (maxValue < 0)
+            {
+                throw new Exception("The maximum value can not be lower than 0 if no minimum is specified. ");
+            }
+            if (maxValue == 0)
+            {
+                return new IntFieldKey(new ReservedSpacePointer(-1, 0, 0));
+            }
+            ReservedSpacePointer space = reserveSpace((uint)maxValue);
+            return new IntFieldKey(space);
+        }
+
+        public static IntMinimumFieldKey CreateCustomIntField(int minValue, int maxValue)
+        {
+            CheckMinMax(minValue, maxValue);
+            if (minValue == maxValue)
+            {
+                return new IntMinimumFieldKey(new ReservedSpacePointer(-1, 0, 0), minValue);
+            }
             long min = minValue;
             long max = maxValue;
-            uint range = (uint)(maxValue - minValue);
-            int minCopy = minValue;
-
-            UIntFieldAccessor uintAccessor = CreateCustomUIntFieldInternal(instance, 0, range);
-            UIntGetterDelegate uintGetter = uintAccessor.Get;
-            UIntSetterDelegate uintSetter = uintAccessor.Set;
-            IntGetterDelegate getter;
-            IntSetterDelegate setter;
-            if (minValue == 0)
-            {
-                getter = new IntGetterDelegate((block) => { return (int)uintGetter(block); });
-                setter = new IntSetterDelegate((block, value) => { uintSetter(block, (uint)value); });
-            }
-            else
-            {
-                getter = new IntGetterDelegate((block) => { return (int)(uintGetter(block) + minCopy); });
-                setter = new IntSetterDelegate((block, value) =>
-            {
-                long valueCopy = value;
-                long correctedValue = value - min;
-                uintSetter(block, (uint)correctedValue);
-            });
-            }
-
-            return new IntFieldAccessor(getter, setter);
+            uint range = (uint)(max - min);
+            ReservedSpacePointer space = reserveSpace(range);
+            return new IntMinimumFieldKey(space, minValue);
         }
 
-        public FloatFieldAccessor CreateCustomFloatField()
+        private static readonly object _createCustomFloatFieldLock = new object();
+        public static FloatFieldKey CreateCustomFloatField()
         {
-            return CreateCustomFloatFieldInternal();
-        }
-        private static readonly object _createCustomFloatFieldInternalLock = new object();
-        private static FloatFieldAccessor CreateCustomFloatFieldInternal()
-        {
-            lock (_createCustomFloatFieldInternalLock)
+            lock (_createCustomFloatFieldLock)
             {
-                int numberOfFields = _floatFields;
+                int key = _floatFields;
                 _floatFields++;
-                FloatGetterDelegate getter = new FloatGetterDelegate((block) =>
-                {
-                    float retVal = 0;
-                    return block._customFloats.TryGetValue(numberOfFields, out retVal) ? retVal : 0;
-                });
-                FloatSetterDelegate setter = new FloatSetterDelegate((block, value) => { block._customFloats[numberOfFields] = value; });
-                return new FloatFieldAccessor(getter, setter);
+                return new FloatFieldKey(key);
             }
         }
 
-        public StringFieldAccessor CreateCustomStringField()
+        private static readonly object _createCustomStringFieldLock = new object();
+        public static StringFieldKey CreateCustomStringField()
         {
-            return CreateCustomStringFieldInternal();
-        }
-        private static readonly object _createCustomStringFieldInternalLock = new object();
-        private static StringFieldAccessor CreateCustomStringFieldInternal()
-        {
-            lock (_createCustomStringFieldInternalLock)
+            lock (_createCustomStringFieldLock)
             {
-                int numberOfFields = _stringFields;
+                int key = _stringFields;
                 _stringFields++;
-                StringGetterDelegate getter = new StringGetterDelegate((block) =>
-                {
-                    string retVal = String.Empty;
-                    return block._customStrings.TryGetValue(numberOfFields, out retVal) ? retVal : String.Empty;
-                });
-                StringSetterDelegate setter = new StringSetterDelegate((block, value) => { block._customStrings[numberOfFields] = value; });
-                return new StringFieldAccessor(getter, setter);
+                return new StringFieldKey(key);
             }
         }
+        #endregion
+        #region custom value getters
+        public bool GetCustomValue(BoolFieldKey key)
+        {
+            ArrayChecker(ref _customBits, key.Index);
+            return GetBoolean(_customBits[key.Index], key.Position);
+        }
+        public uint GetCustomValue(UIntFieldKey key)
+        {
+            if (key.Index < 0)
+            {
+                return 0;
+            }
+            ArrayChecker(ref _customBits, key.Index);
+            return GetInteger(_customBits[key.Index], key.Position, key.Mask);
+        }
+        public uint GetCustomValue(UIntMinimumFieldKey key)
+        {
+            if (key.Index < 0)
+            {
+                return key.Offset;
+            }
+            ArrayChecker(ref _customBits, key.Index);
+            return GetInteger(_customBits[key.Index], key.Position, key.Mask) + key.Offset;
+        }
+        public int GetCustomValue(IntFieldKey key)
+        {
+            if (key.Index < 0)
+            {
+                return 0;
+            }
+            ArrayChecker(ref _customBits, key.Index);
+            return (int)GetInteger(_customBits[key.Index], key.Position, key.Mask);
+        }
+        public int GetCustomValue(IntMinimumFieldKey key)
+        {
+            if (key.Index < 0)
+            {
+                return key.Offset;
+            }
+            ArrayChecker(ref _customBits, key.Index);
+            long storedValue = GetInteger(_customBits[key.Index], key.Position, key.Mask);
+            long correctedValue = storedValue + key.Offset;
+            return (int)correctedValue;
+        }
+        public float GetCustomValue(FloatFieldKey key)
+        {
+            float retVal;
+            _customFloats.TryGetValue(key.Index, out retVal);
+            return retVal;
+        }
+        public string GetCustomValue(StringFieldKey key)
+        {
+            string retVal;
+            _customStrings.TryGetValue(key.Index, out retVal);
+            return retVal;
+        }
+        #endregion
+        #region custom value setters
+        public void SetCustomValue(BoolFieldKey key, bool value)
+        {
+            if (key.Index < 0) { return; }
+            ArrayChecker(ref _customBits, key.Index);
+            SetBoolean(ref _customBits[key.Index], key.Position, value);
+        }
+
+        public void SetCustomValue(UIntFieldKey key, uint value)
+        {
+            if (key.Index < 0) { return; }
+            ArrayChecker(ref _customBits, key.Index);
+            SetInteger(ref _customBits[key.Index], key.Position, key.Mask, value);
+        }
+
+        public void SetCustomValue(UIntMinimumFieldKey key, uint value)
+        {
+            if (key.Index < 0) { return; }
+            if (key.Offset > value) { throw new Exception("The value can not be lower than the specified minimum value. "); }
+            ArrayChecker(ref _customBits, key.Index);
+            SetInteger(ref _customBits[key.Index], key.Position, key.Mask, value - key.Offset);
+        }
+
+        public void SetCustomValue(IntFieldKey key, int value)
+        {
+            if (key.Index < 0) { return; }
+            if (value < 0) { throw new Exception("The value can not be lower than 0. "); }
+            ArrayChecker(ref _customBits, key.Index);
+            SetInteger(ref _customBits[key.Index], key.Position, key.Mask, (uint)value);
+        }
+
+        public void SetCustomValue(IntMinimumFieldKey key, int value)
+        {
+            if (key.Index < 0) { return; }
+            if (key.Offset > value) { throw new Exception("The value can not be lower than the specified minimum value. "); }
+            ArrayChecker(ref _customBits, key.Index);
+            long givenValue = value;
+            long correctedValue = givenValue - key.Offset;
+            SetInteger(ref _customBits[key.Index], key.Position, key.Mask, (uint)correctedValue);
+        }
+
+        public void SetCustomValue(FloatFieldKey key, float value)
+        {
+            _customFloats[key.Index] = value;
+        }
+
+        public void SetCustomValue(StringFieldKey key, string value)
+        {
+            _customStrings[key.Index] = value;
+        }
+        #endregion
         #endregion
         #region built-in values
         // Contains the small integer values of this block as well as boolean values. Has 32 bits (0..31)
@@ -269,13 +331,13 @@ namespace DfLike.World
         }
         #endregion
         #region supporting methods and arithmetic
-        public static uint GetNumberOfBitsRequiredForIntegerValue(uint value)
+        public static int GetNumberOfBitsRequiredForIntegerValue(uint value)
         {
-            return (uint)Math.Ceiling(Math.Log(value, 2));
+            return (int)Math.Ceiling(Math.Log(value, 2));
         }
 
         private static readonly object _arrayCheckerLock = new object();
-        private static void ArrayChecker(ref uint[] array, int requiredIndex)
+        private void ArrayChecker(ref uint[] array, int requiredIndex)
         {
             int length = array.Length;
             if (length > requiredIndex) { return; }
@@ -295,6 +357,13 @@ namespace DfLike.World
         {
             return (uint)(Math.Pow(2, bitCount) - 1);
         }
+        private static void CheckMinMax(long min, long max)
+        {
+            if (min > max)
+            {
+                throw new Exception("The minimum value cannot be larger than the maximum. ");
+            }
+        }
         #endregion
         #region (de)serialization
         public Block(SerializationInfo info, StreamingContext context)
@@ -311,7 +380,7 @@ namespace DfLike.World
 
             // custom floats
             length = info.GetUInt16("cFloatCount");
-            _customFloats = new Dictionary<int, float>(length * 2);
+            _customFloats = new ConcurrentDictionary<int, float>(3, length * 2);
             for (int i = 0; i < length; i++)
             {
                 _customFloats[info.GetInt32("cFloatKey" + i)] = info.GetSingle("cFloatValue" + i);
@@ -319,7 +388,7 @@ namespace DfLike.World
 
             // custom strings
             length = info.GetUInt16("cStringCount");
-            _customStrings = new Dictionary<int, string>(length * 2);
+            _customStrings = new ConcurrentDictionary<int, string>(3, length * 2);
             for (int i = 0; i < length; i++)
             {
                 _customStrings[info.GetInt32("cStringKey" + i)] = info.GetString("cStringValue" + i);
