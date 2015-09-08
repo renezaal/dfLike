@@ -64,7 +64,7 @@
     <Compile Include="PersistantStorage\SaveLoad.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Threading\Message.cs" />
-    <Compile Include="Threading\Messages.cs" />
+    <Compile Include="Threading\Messenger.cs" />
     <Compile Include="Threading\Synchronization.cs" />
     <Compile Include="Threading\Tick.cs" />
     <Compile Include="World\Chunk.cs" />

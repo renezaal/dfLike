@@ -8,6 +8,9 @@ namespace DfLike.World
 {
     class Entity
     {
+        
+        private static void test(){
 
+    }
     }
 }

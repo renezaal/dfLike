@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace DfLike.World
 {
     [Serializable]
-    public class Block : ISerializable
+    public sealed class Block : ISerializable
     {
         #region custom values
         // Contains all integers and smaller values set by mods
@@ -86,8 +86,7 @@ namespace DfLike.World
         }
         #endregion
         #region field creators
-        private static volatile int _currentCustomBitsIndex = 0;
-        private static volatile int _currentCustomBitsPosition = 0;
+        private static readonly List<int> _positionPerIndex = new List<int>();
         private static volatile int _floatFields = 0;
         private static volatile int _stringFields = 0;
 
@@ -97,15 +96,18 @@ namespace DfLike.World
             int bits = GetNumberOfBitsRequiredForIntegerValue(maxValue);
             lock (_reserveSpaceLock)
             {
-                if (_currentCustomBitsPosition + bits > 31)
+                int index = 0;
+                int position = 32;
+                int length = _positionPerIndex.Count;
+                while (index < length && position + bits > 31)
                 {
-                    _currentCustomBitsIndex++;
-                    _currentCustomBitsPosition = 0;
+                    position = _positionPerIndex[index];
+                    index++;
                 }
-
-                int index = _currentCustomBitsIndex;
-                int position = _currentCustomBitsPosition;
-                _currentCustomBitsPosition += bits;
+                if (position + bits > 31)
+                {
+                    _positionPerIndex.Add(0);
+                }
                 return new ReservedSpacePointer(index, position, bits);
             }
         }
@@ -311,21 +313,26 @@ namespace DfLike.World
         public uint MetaData { get { return GetInteger(_bits, 28, 15); } set { SetInteger(ref _bits, 28, 15, value); } }    //28,29,30,31
         #endregion
         #region value accessors
-        private static uint GetInteger(uint bits, int position, uint valueMask)
+        private uint GetInteger(uint bits, int position, uint valueMask)
         {
             return (bits >> position) & valueMask;
         }
-        private static void SetInteger(ref uint bits, int position, uint valueMask, uint value)
+
+        private readonly object _setIntegerLock = new object();
+        private void SetInteger(ref uint bits, int position, uint valueMask, uint value)
         {
             if (value > valueMask) { value = valueMask; }
-            bits &= ~(valueMask << position);
-            bits |= (value << position);
+            lock (_setIntegerLock)
+            {
+                bits &= ~(valueMask << position);
+                bits |= (value << position);
+            }
         }
-        private static bool GetBoolean(uint bits, int position)
+        private bool GetBoolean(uint bits, int position)
         {
             return GetInteger(bits, position, 1) == 1;
         }
-        private static void SetBoolean(ref uint bits, int position, bool value)
+        private void SetBoolean(ref uint bits, int position, bool value)
         {
             SetInteger(ref bits, position, 1, (uint)(value ? 1 : 0));
         }
